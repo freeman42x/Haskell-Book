@@ -4,7 +4,7 @@ module Ch15 where
 
 import Data.Monoid hiding ((<>))
 import Data.Semigroup
-import Test.QuickCheck
+import Test.QuickCheck hiding (Failure, Success)
 
 data Optional a =
   Nada
@@ -195,11 +195,36 @@ instance (Arbitrary a, Arbitrary b) => Arbitrary (Or a b) where
     b <- arbitrary
     elements [Fst a, Snd b]
 
+
+
+newtype Combine a b = Combine { unCombine :: a -> b }
+
+instance Semigroup b => Semigroup (Combine a b) where
+   Combine f <> Combine f' = Combine $ f <> f'
+
+instance (CoArbitrary a, Arbitrary b) => Arbitrary (Combine a b) where
+  arbitrary = Combine <$> arbitrary
+
+
+
+newtype Comp a = Comp { unComp :: a -> a }
+
+instance Semigroup (Comp a) where
+  Comp f <> Comp f' = Comp $ f . f'
+
+
+
 main2 :: IO ()
 main2 = do
   quickCheck (semigroupAssoc :: Trivial -> Trivial -> Trivial -> Bool)
-  quickCheck (semigroupAssoc :: Identity [Int] -> Identity [Int] -> Identity [Int] -> Bool)
-  quickCheck (semigroupAssoc :: Two String String -> Two String String -> Two String String -> Bool)
+  quickCheck (semigroupAssoc :: Identity [Int]
+                                -> Identity [Int]
+                                -> Identity [Int]
+                                -> Bool)
+  quickCheck (semigroupAssoc :: Two String String
+                                -> Two String String
+                                -> Two String String
+                                -> Bool)
   quickCheck (semigroupAssoc :: Three String String String
                                 -> Three String String String
                                 -> Three String String String
@@ -210,4 +235,25 @@ main2 = do
                                 -> Bool)
   quickCheck (semigroupAssoc :: BoolConj -> BoolConj -> BoolConj -> Bool)
   quickCheck (semigroupAssoc :: BoolDisj -> BoolDisj -> BoolDisj -> Bool)
-  quickCheck (semigroupAssoc :: Or String String -> Or String String -> Or String String -> Bool)
+  quickCheck (semigroupAssoc :: Or String String
+                                -> Or String String
+                                -> Or String String
+                                -> Bool)
+
+
+data Validation a b = Failure a | Success b deriving (Eq, Show)
+
+instance Semigroup a => Semigroup (Validation a b) where
+  Failure a <> Failure b = Failure $ a <> b
+  Failure a <> Success b = Success b
+  Success a <> _ = Success a
+
+main3 = do
+  let failure :: String -> Validation String Int
+      failure = Failure
+      success :: Int -> Validation String Int
+      success = Success
+  print $ success 1 <> failure "blah"
+  print $ failure "woot" <> failure "blah"
+  print $ success 1 <> success 2
+  print $ failure "woot" <> success 2
