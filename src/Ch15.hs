@@ -122,11 +122,92 @@ instance Semigroup a => Semigroup (Identity a) where
   (Identity a) <> (Identity a') = Identity $ a <> a'
 
 instance Arbitrary a => Arbitrary (Identity a) where
+  arbitrary :: Gen (Identity a)
   arbitrary = Identity <$> arbitrary
 
 
+
+data Two a b = Two a b deriving (Eq, Show)
+
+instance (Semigroup a, Semigroup b) => Semigroup (Two a b) where
+  Two a b <> Two a' b' = Two (a <> a') (b <> b')
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
+  arbitrary = applyArbitrary2 Two
+
+
+
+data Three a b c = Three a b c deriving (Eq, Show)
+
+instance (Semigroup a, Semigroup b, Semigroup c) => Semigroup (Three a b c) where
+  Three a b c <> Three a' b' c' = Three (a <> a') (b <> b') (c <> c')
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c) => Arbitrary (Three a b c) where
+  arbitrary = applyArbitrary3 Three
+
+
+
+data Four a b c d = Four a b c d deriving (Eq, Show)
+
+instance (Semigroup a, Semigroup b, Semigroup c, Semigroup d)
+  => Semigroup (Four a b c d) where
+  Four a b c d <> Four a' b' c' d' = Four (a <> a') (b <> b') (c <> c') (d <> d')
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d)
+  => Arbitrary (Four a b c d) where
+  arbitrary = applyArbitrary4 Four
+
+
+
+newtype BoolConj = BoolConj Bool deriving (Eq, Show)
+
+instance Semigroup BoolConj where
+  BoolConj True <> BoolConj True = BoolConj True
+  _ <> _ = BoolConj False
+
+instance Arbitrary BoolConj where
+  arbitrary = BoolConj <$> arbitrary
+
+
+
+newtype BoolDisj = BoolDisj Bool deriving (Eq, Show)
+
+instance Semigroup BoolDisj where
+  BoolDisj False <> BoolDisj False = BoolDisj False
+  _ <> _ = BoolDisj True
+
+instance Arbitrary BoolDisj where
+  arbitrary = BoolDisj <$> arbitrary
+
+
+
+data Or a b = Fst a | Snd b deriving (Eq, Show)
+
+instance Semigroup (Or a b) where
+  Fst a <> Fst b = Fst b
+  Fst a <> Snd b = Snd b
+  Snd a <> Fst b = Snd a
+  Snd a <> Snd b = Snd a
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Or a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    elements [Fst a, Snd b]
 
 main2 :: IO ()
 main2 = do
   quickCheck (semigroupAssoc :: Trivial -> Trivial -> Trivial -> Bool)
   quickCheck (semigroupAssoc :: Identity [Int] -> Identity [Int] -> Identity [Int] -> Bool)
+  quickCheck (semigroupAssoc :: Two String String -> Two String String -> Two String String -> Bool)
+  quickCheck (semigroupAssoc :: Three String String String
+                                -> Three String String String
+                                -> Three String String String
+                                -> Bool)
+  quickCheck (semigroupAssoc :: Four String String String String
+                                -> Four String String String String
+                                -> Four String String String String
+                                -> Bool)
+  quickCheck (semigroupAssoc :: BoolConj -> BoolConj -> BoolConj -> Bool)
+  quickCheck (semigroupAssoc :: BoolDisj -> BoolDisj -> BoolDisj -> Bool)
+  quickCheck (semigroupAssoc :: Or String String -> Or String String -> Or String String -> Bool)
