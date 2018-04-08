@@ -1,5 +1,9 @@
+{-# LANGUAGE InstanceSigs #-}
+
 module Ch16 where
 
+import Test.QuickCheck
+import Test.QuickCheck.Function
 
 
 a = (+1) <$> read "[1]" :: [Int]
@@ -24,3 +28,117 @@ e = let ioi = readIO "1" :: IO Integer
     in (*3) <$> changed
 -- Prelude> e
 -- 3693
+
+
+
+functorIdentity :: (Functor f, Eq (f a)) => f a -> Bool
+functorIdentity f = fmap id f == f
+
+functorCompose :: (Eq (f c), Functor f) => f a -> Fun a b -> Fun b c -> Bool
+functorCompose x (Fun _ f) (Fun _ g) =
+  fmap (g . f) x == (fmap g . fmap f $ x)
+
+
+
+newtype Identity a = Identity a deriving (Eq, Show)
+
+instance Functor Identity where
+  fmap f (Identity a) = Identity $ f a
+
+instance Arbitrary a => Arbitrary (Identity a) where
+  arbitrary = Identity <$> arbitrary
+
+
+
+data Pair a = Pair a a deriving (Eq, Show)
+
+instance Functor Pair where
+  fmap :: (a -> b) -> Pair a -> Pair b
+  fmap f (Pair a b) = Pair (f a) (f b)
+
+instance Arbitrary a => Arbitrary (Pair a) where
+  arbitrary = applyArbitrary2 Pair
+
+
+
+data Two a b = Two a b deriving (Eq, Show)
+
+instance Functor (Two a) where
+  fmap :: (c -> b) -> Two a c -> Two a b
+  fmap f (Two a b) = Two a (f b)
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
+  arbitrary = applyArbitrary2 Two
+
+
+
+data Three a b c = Three a b c deriving (Eq, Show)
+
+instance Functor (Three a b) where
+  fmap :: (c -> d) -> Three a b c -> Three a b d
+  fmap f (Three a b c) = Three a b (f c)
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c) => Arbitrary (Three a b c) where
+  arbitrary = applyArbitrary3 Three
+
+
+
+data Three' a b = Three' a b b deriving (Eq, Show)
+
+instance Functor (Three' a) where
+  fmap f (Three' a b c) = Three' a (f b) (f c)
+
+instance (Arbitrary a, Arbitrary b) =>  Arbitrary (Three' a b) where
+  arbitrary = applyArbitrary3 Three'
+
+
+
+data Four a b c d = Four a b c d deriving (Eq, Show)
+
+instance Functor (Four a b c) where
+  fmap f (Four a b c d) = Four a b c (f d)
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d) => Arbitrary (Four a b c d) where
+  arbitrary = applyArbitrary4 Four
+
+
+
+data Four' a b = Four' a a a b deriving (Eq, Show)
+
+instance Functor (Four' a) where
+  fmap f (Four' a b c d) = Four' a b c (f d)
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Four' a b) where
+  arbitrary = applyArbitrary4 Four'
+
+
+
+main :: IO ()
+main = do
+  putStrLn "Identity"
+  quickCheck (functorIdentity :: Identity Int -> Bool)
+  quickCheck (functorCompose :: Identity Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Pair"
+  quickCheck (functorIdentity :: Pair Int -> Bool)
+  quickCheck (functorCompose :: Pair Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Two"
+  quickCheck (functorIdentity :: Two Double Int -> Bool)
+  quickCheck (functorCompose :: Two Double Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Three"
+  quickCheck (functorIdentity :: Three Double Double Int -> Bool)
+  quickCheck (functorCompose :: Three Double Double Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Three'"
+  quickCheck (functorIdentity :: Three' Double Int -> Bool)
+  quickCheck (functorCompose :: Three' Double Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Four"
+  quickCheck (functorIdentity :: Four Double Double Double Int -> Bool)
+  quickCheck (functorCompose :: Four Double Double Double Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Four'"
+  quickCheck (functorIdentity :: Four' Double Int -> Bool)
+  quickCheck (functorCompose :: Four' Double Int -> Fun Int Int -> Fun Int Int -> Bool)
