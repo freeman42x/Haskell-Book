@@ -142,3 +142,26 @@ main = do
   putStrLn "Four'"
   quickCheck (functorIdentity :: Four' Double Int -> Bool)
   quickCheck (functorCompose :: Four' Double Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+
+
+data Possibly a =
+  LolNope
+  | Yeppers a
+  deriving (Eq, Show)
+
+instance Functor Possibly where
+  fmap _ LolNope = LolNope
+  fmap f (Yeppers a) = Yeppers $ f a
+
+
+
+data Sum a b =
+  First a
+  | Second b
+  deriving (Eq, Show)
+
+instance Functor (Sum a) where
+  fmap :: (c -> b) -> Sum a c -> Sum a b
+  fmap _ (First a) = First a
+  fmap f (Second b) = Second $ f b
