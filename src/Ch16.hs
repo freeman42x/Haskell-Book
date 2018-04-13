@@ -1,9 +1,16 @@
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+
+
 
 module Ch16 where
 
-import Test.QuickCheck
-import Test.QuickCheck.Function
+import           Test.QuickCheck
+import           Test.QuickCheck.Function
+
+{-# ANN module "HLint: ignore Functor law" #-}
+{-# ANN module "HLint: ignore Use newtype instead of data" #-}
 
 
 a = (+1) <$> read "[1]" :: [Int]
@@ -151,7 +158,7 @@ data Possibly a =
   deriving (Eq, Show)
 
 instance Functor Possibly where
-  fmap _ LolNope = LolNope
+  fmap _ LolNope     = LolNope
   fmap f (Yeppers a) = Yeppers $ f a
 
 
@@ -163,5 +170,81 @@ data Sum a b =
 
 instance Functor (Sum a) where
   fmap :: (c -> b) -> Sum a c -> Sum a b
-  fmap _ (First a) = First a
+  fmap _ (First a)  = First a
   fmap f (Second b) = Second $ f b
+
+
+
+data Quant a b =
+  Finance
+  | Desk a
+  | Bloor b
+  deriving (Eq, Show)
+
+instance Functor (Quant a) where
+  fmap _ Finance   = Finance
+  fmap _ (Desk a)  = Desk a
+  fmap f (Bloor b) = Bloor $ f b
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Quant a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    elements [Finance, Desk a, Bloor b]
+
+
+
+newtype K a b = K a deriving (Eq, Show)
+
+instance Functor (K a) where
+  fmap :: (c -> b) -> K a c -> K a b
+  fmap _ (K a) = K a
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (K a b) where
+  arbitrary = K <$> arbitrary
+
+
+
+newtype Flip f a b = Flip (f b a) deriving (Eq, Show)
+
+instance Functor (Flip K a) where
+  fmap :: (c -> b) -> Flip K a c -> Flip K a b
+  fmap f (Flip (K b)) = Flip (K $ f b)
+
+instance (Arbitrary a, Arbitrary b, Arbitrary (f b a)) => Arbitrary (Flip f a b) where
+  arbitrary = Flip <$> arbitrary
+
+
+
+data EvilGoateeConst a b = GoatyConst b deriving (Eq, Show)
+
+instance Functor (EvilGoateeConst a) where
+  fmap :: (c -> b) -> EvilGoateeConst a c -> EvilGoateeConst a b
+  fmap f (GoatyConst b) = GoatyConst $ f b
+
+instance Arbitrary b => Arbitrary (EvilGoateeConst a b) where
+  arbitrary = GoatyConst <$> arbitrary
+
+
+
+
+
+
+
+main2 :: IO()
+main2 = do
+  putStrLn "Quant"
+  quickCheck (functorIdentity :: Quant Int Int -> Bool)
+  quickCheck (functorCompose :: Quant Int Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "K"
+  quickCheck (functorIdentity :: K Int Int -> Bool)
+  quickCheck (functorCompose :: K Int Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Flip"
+  quickCheck (functorIdentity :: Flip K Int Int -> Bool)
+  quickCheck (functorCompose :: Flip K Int Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "EvilGoateeConst"
+  quickCheck (functorIdentity :: EvilGoateeConst Int Int -> Bool)
+  quickCheck (functorCompose :: EvilGoateeConst Int Int -> Fun Int Int -> Fun Int Int -> Bool)
