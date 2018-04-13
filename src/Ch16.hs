@@ -1,8 +1,5 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-
-
 
 module Ch16 where
 
@@ -227,7 +224,105 @@ instance Arbitrary b => Arbitrary (EvilGoateeConst a b) where
 
 
 
+data LiftItOut f a = LiftItOut (f a) deriving (Eq, Show)
 
+instance Functor f => Functor (LiftItOut f) where
+  fmap :: (a -> b) -> LiftItOut f a -> LiftItOut f b
+  fmap f (LiftItOut fa) = LiftItOut $ f <$> fa
+
+instance Arbitrary (f a) => Arbitrary (LiftItOut f a) where
+  arbitrary = LiftItOut <$> arbitrary
+
+
+
+data Parappa f g a = DaWrappa (f a) (g a) deriving (Eq, Show)
+
+instance (Functor f, Functor g) => Functor (Parappa f g) where
+  fmap :: (a -> b) -> Parappa f g a -> Parappa f g b
+  fmap f (DaWrappa fa ga) = DaWrappa (f <$> fa) (f <$> ga)
+
+instance (Arbitrary (f a), Arbitrary (g a)) => Arbitrary (Parappa f g a) where
+  arbitrary = applyArbitrary2 DaWrappa
+
+
+
+data IgnoreOne f g a b = IgnoringSomething (f a) (g b) deriving (Eq, Show)
+
+instance (Functor f, Functor g) => Functor (IgnoreOne f g a) where
+  fmap :: (c -> b) -> IgnoreOne f g a c -> IgnoreOne f g a b
+  fmap f (IgnoringSomething fa gb) = IgnoringSomething fa (f <$> gb)
+
+instance (Arbitrary (f a), Arbitrary (g b)) => Arbitrary (IgnoreOne f g a b) where
+  arbitrary = applyArbitrary2 IgnoringSomething
+
+
+
+data Notorious g o a t = Notorious (g o) (g a) (g t) deriving (Eq, Show)
+
+instance Functor g => Functor (Notorious g o a) where
+  fmap :: (c -> b) -> Notorious g o a c -> Notorious g o a b
+  fmap f (Notorious go ga gt) = Notorious go ga (f <$> gt)
+
+instance (Arbitrary (g o), Arbitrary (g a), Arbitrary (g t)) => Arbitrary (Notorious g o a t) where
+  arbitrary = applyArbitrary3 Notorious
+
+
+
+data List a = Nil | Cons a (List a) deriving (Eq, Show)
+
+instance Functor List where
+  fmap _ Nil = Nil
+  fmap f (Cons a la) = Cons (f a) (fmap f la)
+
+instance Arbitrary a => Arbitrary (List a) where
+  arbitrary = sized arbitrarySizedList
+
+arbitrarySizedList :: Arbitrary a => Int -> Gen (List a)
+arbitrarySizedList n
+  | n == 0 = return Nil
+  | n > 5 = arbitrarySizedList 5
+  | otherwise = Cons <$> arbitrary <*> arbitrarySizedList (n - 1)
+
+
+
+data GoatLord a =
+  NoGoat
+  | OneGoat a
+  | MoreGoats (GoatLord a)
+              (GoatLord a)
+              (GoatLord a)
+  deriving (Eq, Show)
+
+instance Functor GoatLord where
+  fmap _ NoGoat = NoGoat
+  fmap f (OneGoat a) = OneGoat $ f a
+  fmap f (MoreGoats mg1 mg2 mg3) = MoreGoats (f <$> mg1) (f <$> mg2) (f <$> mg3)
+
+instance Arbitrary a => Arbitrary (GoatLord a) where
+  arbitrary = sized arbitrarySizedGoatLord
+
+arbitrarySizedGoatLord :: Arbitrary a => Int -> Gen (GoatLord a)
+arbitrarySizedGoatLord n
+  | n == 0 = return NoGoat
+  | n > 3 = arbitrarySizedGoatLord 3
+  | otherwise = frequency [(1, return NoGoat),
+                           (1, OneGoat <$> arbitrary),
+                           (8, MoreGoats <$> arbitrarySizedGoatLord (n-1)
+                                         <*> arbitrarySizedGoatLord (n-1)
+                                         <*> arbitrarySizedGoatLord (n-1))]
+
+
+
+data TalkToMe a =
+  Halt
+  | Print String a
+  | Read (String -> a)
+
+instance Functor TalkToMe where
+  fmap :: (a -> b) -> TalkToMe a -> TalkToMe b
+  fmap  _ Halt = Halt
+  fmap f (Print s a) = Print s (f a)
+  fmap f (Read g) = Read $ f . g
 
 
 
@@ -248,3 +343,27 @@ main2 = do
   putStrLn "EvilGoateeConst"
   quickCheck (functorIdentity :: EvilGoateeConst Int Int -> Bool)
   quickCheck (functorCompose :: EvilGoateeConst Int Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "LiftItOut"
+  quickCheck (functorIdentity :: LiftItOut [] Int -> Bool)
+  quickCheck (functorCompose :: LiftItOut [] Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Parappa"
+  quickCheck (functorIdentity :: Parappa [] [] Int -> Bool)
+  quickCheck (functorCompose :: Parappa [] [] Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "IgnoreOne"
+  quickCheck (functorIdentity :: IgnoreOne [] [] Int Int -> Bool)
+  quickCheck (functorCompose :: IgnoreOne [] [] Int Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "Notorious"
+  quickCheck (functorIdentity :: Notorious [] Int Int Int -> Bool)
+  quickCheck (functorCompose :: Notorious [] Int Int Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "List"
+  quickCheck (functorIdentity :: List Int -> Bool)
+  quickCheck (functorCompose :: List Int -> Fun Int Int -> Fun Int Int -> Bool)
+
+  putStrLn "GoatLord"
+  quickCheck (functorIdentity :: GoatLord Int -> Bool)
+  quickCheck (functorCompose :: GoatLord Int -> Fun Int Int -> Fun Int Int -> Bool)
