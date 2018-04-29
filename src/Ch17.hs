@@ -4,6 +4,7 @@ module Ch17 where
 
 import           Control.Applicative
 import           Data.List
+import           Data.Monoid
 
 {-# ANN module "HLint: Move brackets to avoid $" #-}
 
@@ -50,3 +51,32 @@ y3 = lookup 2 $ zip xs ys
 
 summed :: Maybe Integer
 summed = sum <$> liftA2 (,) x3 y3
+
+
+
+newtype Identity a = Identity a
+  deriving (Eq, Ord, Show)
+
+instance Functor Identity where
+  fmap :: (a -> b) -> Identity a -> Identity b
+  fmap f (Identity a) = Identity $ f a
+
+instance Applicative Identity where
+  pure = Identity
+  (<*>) :: Identity (a -> b) -> Identity a -> Identity b
+  (<*>) (Identity f) (Identity a) = Identity $ f a
+
+
+
+newtype Constant a b = Constant { getConstant :: a }
+  deriving (Eq, Ord, Show)
+
+instance Functor (Constant a) where
+  fmap :: (c -> b) -> Constant a c -> Constant a b
+  fmap _ (Constant a) = Constant a
+
+instance Monoid a => Applicative (Constant a) where
+  pure :: b -> Constant a b
+  pure b = Constant mempty
+  (<*>) :: Constant a (c -> b) -> Constant a c -> Constant a b
+  (<*>) (Constant a) (Constant b) = Constant $ a <> b
