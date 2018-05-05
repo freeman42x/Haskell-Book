@@ -80,3 +80,40 @@ instance Monoid a => Applicative (Constant a) where
   pure b = Constant mempty
   (<*>) :: Constant a (c -> b) -> Constant a c -> Constant a b
   (<*>) (Constant a) (Constant b) = Constant $ a <> b
+
+
+
+fixUp1 = const <$> Just "Hello" <*> Just "World"
+
+fixUp2 = (,,,) <$> Just 90 <*> Just 10 <*> Just "Tierness" <*> Just [1, 2, 3]
+
+
+
+data List a =
+  Nil
+  | Cons a (List a)
+  deriving (Eq, Show)
+
+instance Functor List where
+  fmap :: (a -> b) -> List a -> List b
+  fmap f (Cons a la) = Cons (f a) (fmap f la)
+  fmap _ _           = Nil
+
+append :: List a -> List a -> List a
+append Nil ys         = ys
+append (Cons x xs) ys = Cons x (append xs ys)
+
+fold :: (a -> b -> b) -> b -> List a -> b
+fold _ b Nil        = b
+fold f b (Cons h t) = f h (fold f b t)
+
+concat' :: List (List a) -> List a
+concat' = fold append Nil
+
+-- write this one in terms of concat' and fmap
+flatMap :: (a -> List b) -> List a -> List b
+flatMap f as = undefined
+
+-- instance Applicative List where
+--   pure = undefined
+--   (<*>) = undefined
