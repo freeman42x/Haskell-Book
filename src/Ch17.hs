@@ -6,12 +6,10 @@ import           Control.Applicative
 import           Data.List
 import           Data.Monoid
 
-{-# ANN module "HLint: Move brackets to avoid $" #-}
-
--- Make the following expressions typecheck∷
+-- Make the following expressions typecheck:
 
 added :: Maybe Integer
-added = (+3) <$> (lookup 3 $ zip [1, 2, 3] [4, 5, 6])
+added = (+3) <$> lookup 3 (zip [1, 2, 3] [4, 5, 6])
 
 
 
@@ -112,8 +110,12 @@ concat' = fold append Nil
 
 -- write this one in terms of concat' and fmap
 flatMap :: (a -> List b) -> List a -> List b
-flatMap f as = undefined
+flatMap f as = concat' $ fmap f as
 
--- instance Applicative List where
---   pure = undefined
---   (<*>) = undefined
+instance Applicative List where
+  pure a = Cons a Nil
+
+  (<*>) :: List (a -> b) -> List a -> List b
+  Nil <*> _ = Nil
+  _ <*> Nil = Nil
+  Cons f fa <*> xs = append (fmap f xs) (fa <*> xs)
