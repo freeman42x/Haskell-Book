@@ -1,7 +1,2 @@
-with import <nixpkgs> { };
-
-((haskellPackages.override {
-  overrides = self: super: {
-    QuickCheck = self.callPackage ./QuickCheck.nix { };
-  };
-}).callPackage ./. { }).env
+{ nixpkgs ? import <nixpkgs> {} }:
+(import ./default.nix { inherit nixpkgs; }).env

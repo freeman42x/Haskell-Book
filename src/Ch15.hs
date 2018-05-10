@@ -2,9 +2,9 @@
 
 module Ch15 where
 
-import Data.Monoid hiding ((<>))
-import Data.Semigroup
-import Test.QuickCheck hiding (Failure, Success)
+import           Data.Monoid     hiding ((<>))
+import           Data.Semigroup
+import           Test.QuickCheck hiding (Failure, Success)
 
 data Optional a =
   Nada
@@ -16,9 +16,9 @@ instance Monoid a => Monoid (Optional a) where
   mempty = Nada
 
   mappend :: Optional a -> Optional a -> Optional a
-  mappend Nada Nada = Nada
-  mappend Nada (Only b) = Only b
-  mappend (Only a) Nada = Only a
+  mappend Nada Nada         = Nada
+  mappend Nada (Only b)     = Only b
+  mappend (Only a) Nada     = Only a
   mappend (Only a) (Only b) = Only $ mappend a b
 
 
@@ -68,8 +68,8 @@ newtype First' a = First' { getFirst' :: Optional a } deriving (Eq, Show)
 instance Semigroup (First' a) where
   (<>) :: First' a -> First' a -> First' a
   (<>) (First' Nada) (First' Nada) = First' Nada
-  (<>) (First' Nada) b = b
-  (<>) a _ = a
+  (<>) (First' Nada) b             = b
+  (<>) a _                         = a
 
 instance Monoid (First' a) where
   mempty :: First' a
