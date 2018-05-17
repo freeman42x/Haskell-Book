@@ -8,7 +8,7 @@ import           Data.Monoid
 import           Test.QuickCheck.Arbitrary (Arbitrary, arbitrary)
 import           Test.QuickCheck.Checkers  (EqProp, eq, quickBatch, (=-=))
 import           Test.QuickCheck.Classes   (applicative)
-import           Test.QuickCheck.Gen       (Gen, frequency)
+import           Test.QuickCheck.Gen       (Gen, elements, frequency)
 
 -- Make the following expressions typecheck:
 
@@ -168,7 +168,42 @@ instance Arbitrary a => Arbitrary (ZipList' a) where
   arbitrary = ZipList' <$> arbitrary
 
 
+
+data Validation e a =
+  Failure e
+  | Success a
+  deriving (Eq, Show)
+
+
+instance Functor (Validation e) where
+  fmap :: (a -> b) -> Validation e a -> Validation e b
+  fmap f (Failure e) = Failure e
+  fmap f (Success a) = Success $ f a
+
+instance Monoid e => Applicative (Validation e) where
+  pure :: a -> Validation e a
+  pure = Success
+
+  (<*>) :: Validation e (a -> b) -> Validation e a -> Validation e b
+  (Failure a) <*> (Failure b) = Failure $ a <> b
+  (Failure a) <*> _ = Failure a
+  _ <*> (Failure b) = Failure b
+  (Success f) <*> (Success b) = Success $ f b
+
+instance (Arbitrary e, Arbitrary a) => Arbitrary (Validation e a) where
+  arbitrary = do
+    e <- arbitrary
+    a <- arbitrary
+    elements [Failure e, Success a]
+
+instance (Eq e, Eq a) => EqProp (Validation e a) where
+  (=-=) = eq
+
+
+
 main :: IO()
 main = do
   putStrLn "ZipList'"
   quickBatch (applicative $ ZipList' (Cons (undefined :: (Bool, Bool, Bool)) Nil))
+  putStrLn "Validation"
+  quickBatch (applicative (undefined :: Validation String (String, String, String)))
