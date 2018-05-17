@@ -5,6 +5,10 @@ module Ch17 where
 import           Control.Applicative
 import           Data.List
 import           Data.Monoid
+import           Test.QuickCheck.Arbitrary (Arbitrary, arbitrary)
+import           Test.QuickCheck.Checkers  (EqProp, eq, quickBatch, (=-=))
+import           Test.QuickCheck.Classes   (applicative)
+import           Test.QuickCheck.Gen       (Gen, frequency)
 
 -- Make the following expressions typecheck:
 
@@ -119,3 +123,52 @@ instance Applicative List where
   Nil <*> _ = Nil
   _ <*> Nil = Nil
   Cons f fa <*> xs = append (fmap f xs) (fa <*> xs)
+
+
+
+take' :: Int -> List a -> List a
+take' 0 _           = Nil
+take' n Nil         = Nil
+take' n (Cons x xs) = Cons x (take' (n - 1) xs)
+
+newtype ZipList' a = ZipList' (List a) deriving (Eq, Show)
+
+instance Eq a => EqProp (ZipList' a) where
+  xs =-= ys = xs' `eq` ys'
+    where xs' = let (ZipList' l) = xs
+                in take' 3000 l
+          ys' = let (ZipList' l) = ys
+                in take' 3000 l
+
+instance Functor ZipList' where
+  fmap f (ZipList' xs) = ZipList' $ fmap f xs
+
+instance Applicative ZipList' where
+  pure :: a -> ZipList' a
+  pure x = ZipList' (Cons x Nil)
+
+  (<*>) :: ZipList' (a -> b) -> ZipList' a -> ZipList' b
+  ZipList' Nil <*> _ = ZipList' Nil
+  _ <*> ZipList' Nil = ZipList' Nil
+  ZipList' (Cons f Nil) <*> ZipList' (Cons x xs)  = ZipList' $ Cons (f x) (pure f <*> xs)
+  ZipList' (Cons f fs)  <*> ZipList' (Cons x Nil) = ZipList' $ Cons (f x) (fs <*> pure x)
+  ZipList' (Cons f fs)  <*> ZipList' (Cons x xs)  = ZipList' $ Cons (f x) (fs <*> xs)
+
+instance Arbitrary a => Arbitrary (List a) where
+  arbitrary = genList
+
+genList :: Arbitrary a => Gen (List a)
+genList = do
+  h <- arbitrary
+  t <- genList
+  frequency [(3, return $ Cons h t),
+             (1, return Nil)]
+
+instance Arbitrary a => Arbitrary (ZipList' a) where
+  arbitrary = ZipList' <$> arbitrary
+
+
+main :: IO()
+main = do
+  putStrLn "ZipList'"
+  quickBatch (applicative $ ZipList' (Cons (undefined :: (Bool, Bool, Bool)) Nil))
