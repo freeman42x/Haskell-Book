@@ -5,7 +5,8 @@ module Ch17 where
 import           Control.Applicative
 import           Data.List
 import           Data.Monoid
-import           Test.QuickCheck.Arbitrary (Arbitrary, arbitrary)
+import           Test.QuickCheck.Arbitrary (Arbitrary, applyArbitrary2,
+                                            applyArbitrary3, arbitrary)
 import           Test.QuickCheck.Checkers  (EqProp, eq, quickBatch, (=-=))
 import           Test.QuickCheck.Classes   (applicative)
 import           Test.QuickCheck.Gen       (Gen, elements, frequency)
@@ -201,9 +202,104 @@ instance (Eq e, Eq a) => EqProp (Validation e a) where
 
 
 
+data Pair a = Pair a a deriving (Eq, Show)
+
+instance Functor Pair where
+  fmap :: (a -> b) -> Pair a -> Pair b
+  fmap f (Pair a b) = Pair (f a) (f b)
+
+instance Applicative Pair where
+  pure :: a -> Pair a
+  pure a = Pair a a
+
+  (<*>) :: Pair (a -> b) -> Pair a -> Pair b
+  Pair f g <*> Pair a b = Pair (f a) (g b)
+
+instance Arbitrary a => Arbitrary (Pair a) where
+  arbitrary = applyArbitrary2 Pair
+
+instance Eq a => EqProp (Pair a) where
+  (=-=) = eq
+
+
+
+data Two a b = Two a b deriving (Eq, Show)
+
+instance Functor (Two a) where
+  fmap :: (c -> b) -> Two a c -> Two a b
+  fmap f (Two a b) = Two a (f b)
+
+instance Monoid a => Applicative (Two a) where
+  pure :: b -> Two a b
+  pure = Two mempty
+
+  (<*>) :: Two a (c -> b) -> Two a c -> Two a b
+  (Two a f) <*> (Two a' b) = Two (a <> a') (f b)
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary
+    return $ Two a b
+
+instance (Eq a, Eq b) => EqProp (Two a b) where
+  (=-=) = eq
+
+
+
+data Three a b c = Three a b c deriving (Eq, Show)
+
+instance Functor (Three a b) where
+  fmap :: (d -> c) -> Three a b d -> Three a b c
+  fmap f (Three a b c) = Three a b (f c)
+
+instance (Monoid a, Monoid b) => Applicative (Three a b) where
+  pure :: c -> Three a b c
+  pure = Three mempty mempty
+
+  (<*>) :: Three a b (c -> d) -> Three a b c -> Three a b d
+  Three a b f <*> Three a' b' c' = Three (a <> a') (b <> b') (f c')
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c) => Arbitrary (Three a b c) where
+  arbitrary = applyArbitrary3 Three
+
+instance (Eq a, Eq b, Eq c) => EqProp (Three a b c) where
+  (=-=) = eq
+
+
+
+data Three' a b = Three' a b b deriving (Eq, Show)
+
+instance Functor (Three' a) where
+  fmap :: (c -> b) -> Three' a c -> Three' a b
+  fmap f (Three' a b c) = Three' a (f b) (f c)
+
+instance Monoid a => Applicative (Three' a) where
+  pure :: b -> Three' a b
+  pure b = Three' mempty b b
+
+  (<*>) :: Three' a (c -> b) -> Three' a c -> Three' a b
+  Three' a f g <*> Three' a' b' c' = Three' (a <> a') (f b') (g c')
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Three' a b) where
+  arbitrary = applyArbitrary3 Three'
+
+instance (Eq a, Eq b) => EqProp (Three' a b) where
+  (=-=) = eq
+
+
+
 main :: IO()
 main = do
   putStrLn "ZipList'"
   quickBatch (applicative $ ZipList' (Cons (undefined :: (Bool, Bool, Bool)) Nil))
   putStrLn "Validation"
-  quickBatch (applicative (undefined :: Validation String (String, String, String)))
+  quickBatch (applicative (undefined :: Validation (String, String, String) (Int, Bool, String)))
+  putStrLn "Pair"
+  quickBatch (applicative (undefined :: Pair (String, Int, String)))
+  putStrLn "Two"
+  quickBatch (applicative (undefined :: Two String (Int, Int, Int)))
+  putStrLn "Three"
+  quickBatch (applicative (undefined :: Three String String (Int, Int, Int)))
+  putStrLn "Three'"
+  quickBatch (applicative (undefined :: Three' String (Int, Int, Int)))
