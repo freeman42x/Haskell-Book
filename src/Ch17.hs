@@ -289,6 +289,50 @@ instance (Eq a, Eq b) => EqProp (Three' a b) where
 
 
 
+data Four a b c d = Four a b c d deriving (Eq, Show)
+
+instance Functor (Four a b c) where
+  fmap :: (d -> e) -> Four a b c d -> Four a b c e
+  fmap f (Four a b c d) = Four a b c (f d)
+
+instance (Monoid a, Monoid b, Monoid c) => Applicative (Four a b c) where
+  pure :: d -> Four a b c d
+  pure = Four mempty mempty mempty
+
+  (<*>) :: Four a b c (d -> e) -> Four a b c d -> Four a b c e
+  Four a b c f <*> Four a' b' c' d' = Four (a <> a') (b <> b') (c <> c') (f d')
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d) => Arbitrary (Four a b c d) where
+  arbitrary = Four <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b, Eq c, Eq d) => EqProp (Four a b c d) where
+  (=-=) = eq
+
+
+
+data Four' a b = Four' a a a b deriving (Eq, Show)
+
+instance Functor (Four' a) where
+  fmap :: (c -> b) -> Four' a c -> Four' a b
+  fmap f (Four' a b c d) = Four' a b c (f d)
+
+
+
+instance Monoid a => Applicative (Four' a) where
+  pure :: b -> Four' a b
+  pure = Four' mempty mempty mempty
+
+  (<*>) :: Four' a (c -> b) -> Four' a c -> Four' a b
+  Four' a b c f <*> Four' a' b' c' d' = Four' (a <> a') (b <> b') (c <> c') (f d')
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Four' a b) where
+  arbitrary = Four' <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+
+instance (Eq a, Eq b) => EqProp (Four' a b) where
+  (=-=) = eq
+
+
+
 main :: IO()
 main = do
   putStrLn "ZipList'"
@@ -303,3 +347,18 @@ main = do
   quickBatch (applicative (undefined :: Three String String (Int, Int, Int)))
   putStrLn "Three'"
   quickBatch (applicative (undefined :: Three' String (Int, Int, Int)))
+  putStrLn "Four"
+  quickBatch (applicative (undefined :: Four String String String (Int, Int, Int)))
+  putStrLn "Four'"
+  quickBatch (applicative (undefined :: Four' String (Int, Int, Int)))
+
+
+
+stops :: String
+stops = "pbtdkg"
+
+vowels :: String
+vowels = "aeiou"
+
+combos :: [a] -> [b] -> [c] -> [(a, b, c)]
+combos = liftA3 (,,)
